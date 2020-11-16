@@ -6,8 +6,8 @@ env_dir=$3
 aws_bucket="$(cat $env_dir/AWS_BUCKET)"
 geoip_db_path="$(cat $env_dir/GEOIP_DB_PATH)"
 
-path = $(echo $geoip_db_path | grep -E -o ".+/")
-mkdir -p $path
+path = ${geoip_db_path%/*}
+mkdir -p $app_dir/$path
 
 download_url="https://$aws_bucket.s3.amazonaws.com/$geoip_db_path"
 
