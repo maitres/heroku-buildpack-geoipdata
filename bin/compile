@@ -1,16 +1,38 @@
-#!/bin/sh
+#!/bin/bash
+
+set -e
 
 app_dir=$1
-env_dir=$3
 
-aws_bucket="$(cat $env_dir/AWS_BUCKET)"
-geoip_db_path="$(cat $env_dir/GEOIP_DB_PATH)"
+AWS_ACCESS_KEY_ID="$(cat $3/AWS_ACCESS_KEY_ID)"
+AWS_SECRET_ACCESS_KEY="$(cat $3/AWS_SECRET_ACCESS_KEY)"
+AWS_BUCKET="$(cat $3/AWS_BUCKET)"
+GEOIP_DB_PATH="$(cat $3/GEOIP_DB_PATH)"
 
-path=${geoip_db_path%/*}
-mkdir -p $app_dir/$path
+# make dir
+path=${GEOIP_DB_PATH%/*}
+mkdir -p "$app_dir/$path"
 
-download_url="https://$aws_bucket.s3.amazonaws.com/$geoip_db_path"
+# download file
+resource="/${AWS_BUCKET}/${GEOIP_DB_PATH}"
+contentType="application/x-www-form-urlencoded"
+dateValue="$(date +'%a, %d %b %Y %H:%M:%S %z')"
+stringToSign="GET\n\n${contentType}\n${dateValue}\n${resource}"
+signature=$(/bin/echo -en "$stringToSign" | openssl sha1 -hmac "${AWS_SECRET_ACCESS_KEY}" -binary | base64)
 
-wget --directory-prefix=$app_dir/$path $download_url
+url="https://${AWS_BUCKET}.s3.amazonaws.com/${GEOIP_DB_PATH}"
+status_code=$(curl --write-out %{http_code} --output "$app_dir/${GEOIP_DB_PATH}" -H "Host: ${AWS_BUCKET}.s3.amazonaws.com" \
+  -H "Date: ${dateValue}" \
+  -H "Content-Type: ${contentType}" \
+  -H "Authorization: AWS ${AWS_ACCESS_KEY_ID}:${signature}" \
+  "$url")
 
-echo "Geoip DB successfully downloaded!"
+# check
+if [[ "$status_code" -ne 200 ]]; then
+  echo "Geoip DB download error!"
+  echo "url: $url"
+  echo "status code: $status_code"
+  exit 1
+else
+  echo "Geoip DB successfully downloaded!"
+fi
