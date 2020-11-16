@@ -3,19 +3,14 @@
 app_dir=$1
 env_dir=$3
 
-s3_bucket="$(cat $env_dir/GEO_S3_BUCKET)"
-s3_path="$(cat $env_dir/GEO_S3_PATH)"
-geo_download_path="$(cat $env_dir/GEO_DOWNLOAD_PATH)"
+aws_bucket="$(cat $env_dir/AWS_BUCKET)"
+geoip_db_path="$(cat $env_dir/GEOIP_DB_PATH)"
 
-if [ -e "$s3_bucket" ] && [ -e "$s3_path"]; then
-  download_url="https://$s3_bucket.s3.amazonaws.com/$s3_path"
-else
-  download_url="http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.mmdb.gz"
-fi
+path = $(echo $geoip_db_path | grep -E -o ".+/")
+mkdir -p $path
 
-mkdir -p $geo_download_path
+download_url="https://$aws_bucket.s3.amazonaws.com/$geoip_db_path"
 
-wget --directory-prefix=$app_dir/$geo_download_path/ $download_url
-gunzip $app_dir/$geo_download_path/GeoLite2-City.mmdb.gz
+wget --directory-prefix=$app_dir/$path $download_url
 
-echo "GeoLite DB download and extraction complete!"
+echo "Geoip DB successfully downloaded!"
